@@ -7,60 +7,60 @@
 ##pip install requests
 ##If scraping a site that uses javascript or any scripts, you will need to use selenium
 #pip install selenium
+
+
 import requests
 import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 link = 'https://www.nike.com/w/mens-shoes-nik1zy7ok'
 
 def get_data(url):
-    # Define the ChromeDriver path
-    chrome_driver_path = "/Users/joelcastro/Downloads/chromedriver"
-
     # Set up the Service and Options
-    service = Service(executable_path=chrome_driver_path)
-    options = webdriver.ChromeOptions()
+    options = Options()
     options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
 
-    # Initialize the WebDriver
-    driver = webdriver.Chrome(service=service, options=options)
-
-    # Navigate to the page
-    driver.get(url)
+    # Path to chromedriver on GitHub Actions (adjust for local if testing)
+    chrome_driver_path = '/usr/lib/chromium-browser/chromedriver'
 
     try:
-    # Wait for the elements to be present (you might need to update the class name)
+        # Initialize the WebDriver with the path
+        driver = webdriver.Chrome(executable_path=chrome_driver_path, options=options)
+
+        # Navigate to the page
+        driver.get(url)
+
+        # Wait for the product grid to load, Wait for the elements to be present (you might need to update the class name)
         product_grid = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "product-grid__items"))
         )
-        #print(driver.title)  # Print page title
         return product_grid.text  # Print the product grid items text
 
     except Exception as e:
         print(f"Error: {e}")
-    #finally:
-        # Wait for input to keep the window open
-    #    input("Press enter to exit...")
-    #    driver.quit()
-        # Fetch the title directly using driver.title
-        #print(driver.title)
-            #print(driver.find_element(By.CLASS_NAME, "product-grid__items css-hvew4t").text)
-        # Wait for input to keep the window open
-        #input("Press enter to exit...")
-        #driver.quit()
+        return None  # Return None on error
+    finally:
+        # Ensure WebDriver is closed
+        driver.quit()
+
 
 def check_change(url, old_data_file='old_data.txt'):
     new_data = get_data(url)
+    if not new_data:
+        return false;
     try:
         #opens old data file and reads
         with open(old_data_file, 'r') as f:
             #sets old_data to what is found inside old data text file
             old_data =f.read()
-            print("read in")
+            print("read in old data")
             #checks if the new found data is the same as the old read in data
         if new_data == old_data:
             #if not then it will overwrite the old file data with the new data
