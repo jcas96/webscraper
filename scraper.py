@@ -94,4 +94,5 @@ def send_noti(message):
 while True:
     if check_change(link):
         send_noti("Change detected"+ " "+link)
+        time.sleep(1)
 
