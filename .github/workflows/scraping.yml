@@ -2,7 +2,10 @@ name: Web Scraping
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Runs every hour
+    - cron: '*/5 * * * *'  # Runs every hour
+  workflow_dispatch:  # Allows manual triggering of the workflow from GitHub UI
+
+    
 
 jobs:
   scraping:
