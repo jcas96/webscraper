@@ -8,6 +8,7 @@
 #pip install selenium
 import requests
 import time
+import json
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -33,53 +34,75 @@ def get_data(url):
     driver.get(url)
 
     try:
-    # Wait for the elements to be present (you might need to update the class name)
-        product_grid = WebDriverWait(driver, 10).until(
+        # Wait for the elements to be present (adjust the element selectors to your needs)
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "product-grid__items"))
         )
-        #print(driver.title)  # Print page title
-        return product_grid.text  # Print the product grid items text
+
+        # For example, let's extract product names and prices
+        product_names = driver.find_elements(By.CLASS_NAME, "product-card__title")
+        product_prices = driver.find_elements(By.CLASS_NAME, "product-price")
+        product_links = driver.find_elements(By.CLASS_NAME, "product-card__img-link-overlay")
+
+        # Create a dictionary to store product name and price
+        product_data = {}
+        for i, name in enumerate(product_names):
+            # Get the href value from the <a> tag
+            href = product_links[i].get_attribute('href')  # Grabbing the href attribute
+            product_data[name.text] = {
+                'price': product_prices[i].text,
+                'href': href
+            }
+
+        return product_data  # Return the product data as a dictionary
 
     except Exception as e:
         print(f"Error: {e}")
-    #finally:
-        # Wait for input to keep the window open
-    #    input("Press enter to exit...")
-    #    driver.quit()
-        # Fetch the title directly using driver.title
-        #print(driver.title)
-            #print(driver.find_element(By.CLASS_NAME, "product-grid__items css-hvew4t").text)
-        # Wait for input to keep the window open
-        #input("Press enter to exit...")
-        #driver.quit()
+        return {}
 
-def check_change(url, old_data_file='old_data.txt'):
+    finally:
+        driver.quit()
+
+
+def check_change(url, old_data_file='old_data.json'):
     new_data = get_data(url)
+    if not new_data:  # If no data is fetched, skip the comparison
+        return False
+
     try:
-        #opens old data file and reads
+        # Open the old data file and read the previous data
         with open(old_data_file, 'r') as f:
-            #sets old_data to what is found inside old data text file
-            old_data =f.read()
-            print("read in")
-            #checks if the new found data is the same as the old read in data
-        if new_data != old_data:
-            #if not then it will overwrite the old file data with the new data
+            old_data = json.load(f)  # Use json.load to read the data
+
+        # Compare the new data with the old data
+        changes = []
+        for product, data in new_data.items():
+            if product not in old_data or old_data[product] != data:
+                changes.append(f"{product} - {data['price']} - {data['href']}")
+
+        if changes:
+            # If there are any changes, update the file and return the changes
             with open(old_data_file, 'w') as f:
-                f.write(new_data)
-                print("read in new data")
-            return True
-    #if no file is found then it will create a file for itself to use
+                json.dump(new_data, f)  # Use json.dump to safely write the data
+            return changes  # Return the list of changes
+        else:
+            print("No changes detected.")
+            return []
+
     except FileNotFoundError:
+        # If the file doesn't exist, create it and write the current data
         with open(old_data_file, 'w') as f:
-            f.write(new_data)
-    return False
+            json.dump(new_data, f)
+        print("First time run, saving data.")
+        return []
+
 
 def send_noti(message):
-    bot_token= '7629797667:AAHKli_4cr7SKNKw6L4Iq00N4sKcZrlbovE'
-    chat_id= "7232594881"
+    bot_token = '7629797667:AAHKli_4cr7SKNKw6L4Iq00N4sKcZrlbovE'
+    chat_id = "7232594881"
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload={
+    payload = {
         'chat_id': chat_id,
         'text': message
     }
@@ -88,11 +111,12 @@ def send_noti(message):
         response = requests.post(url, data=payload)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        print("error sending noti")
+        print("Error sending notification:", e)
 
 
 while True:
-    if check_change(link):
-        send_noti("Change detected"+ " "+link)
-        time.sleep(1)
-
+    changes = check_change(link)
+    if changes:
+        change_details = "\n".join(changes)
+        send_noti(f"Changes detected:\n{change_details}")
+    time.sleep(1)  # Run every minute instead of every second
